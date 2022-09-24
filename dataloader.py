@@ -26,6 +26,7 @@ def create_vctk_dataloader(hparams, cv, sr=24000):
 
         return wav_list, wav_l_list, band_list
 
+    print(f"Preparing dataloader for split:", cv)
     if cv == 0:
         return DataLoader(dataset=VCTKMultiSpkDataset(hparams, cv),
                           batch_size=hparams.train.batch_size,
@@ -47,7 +48,7 @@ def create_vctk_dataloader(hparams, cv, sr=24000):
 
 
 class VCTKMultiSpkDataset(Dataset):
-    def __init__(self, hparams, cv=0, sr=24000):  # cv 0: train, 1: val, 2: test
+    def __init__(self, hparams, cv=0, sr=None):  # cv 0: train, 1: val, 2: test
         def _get_datalist(folder, file_format, spk_list, cv):
             _dl = []
             len_spk_list = len(spk_list)
@@ -79,7 +80,7 @@ class VCTKMultiSpkDataset(Dataset):
         self.hparams = hparams
         self.cv = cv
         self.cv_ratio = eval(hparams.data.cv_ratio)
-        self.sr = sr
+        self.sr = hparams.audio.sampling_rate // 2 if sr is None else sr
         self.directory = hparams.data.dir
         self.dataformat = hparams.data.format
 
@@ -108,12 +109,20 @@ class VCTKMultiSpkDataset(Dataset):
         if self.cv == 0:
             order = random.randint(1, 11)
             ripple = random.choice([1e-9, 1e-6, 1e-3, 1, 5])
-            highcut = random.randint(self.hparams.audio.sr_min // 2, self.hparams.audio.sr_max // 2)
+            highcut = random.randint(
+                self.hparams.audio.sr_min // 2, 
+                self.hparams.audio.sr_max // 2
+            )
         else:
             order = 8
             ripple = 0.05
             if self.cv == 1:
-                highcut = random.choice([8000 // 2, 12000 // 2, 16000 // 2, 24000 // 2])
+                highcut = random.choice([
+                    self.hparams.audio.sr_max // 12, 
+                    self.hparams.audio.sr_max // 8, 
+                    self.hparams.audio.sr_max // 6, 
+                    self.hparams.audio.sr_max // 4
+                ])
             elif self.cv == 2:
                 highcut = self.sr // 2
 
